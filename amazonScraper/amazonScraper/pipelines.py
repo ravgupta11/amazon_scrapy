@@ -17,7 +17,7 @@ from scrapy.pipelines.images import ImagesPipeline
 class AmazonscraperPipeline1(ImagesPipeline):
 
     def get_media_requests(self, item, info):
-        return [Request(x, meta={'title': item['title']}) for x in
+        return [Request(x, meta={'title': item['title'], 'breadcrumbs': item['breadcrumbs']}) for x in
                 item.get(self.images_urls_field, [])]
 
     def file_path(self, request, response=None, info=None):
@@ -45,7 +45,8 @@ class AmazonscraperPipeline1(ImagesPipeline):
             return self.image_key(url)
         ## end of deprecation warning block
         title = request.meta['title']
-        return '%s\IMG.jpg' % (title)
+        _path = request.meta['breadcrumbs']
+        return '%s/%s/IMG.jpg' % (_path, title)
 
 
 class AmazonscraperPipeline2(object):
@@ -60,15 +61,20 @@ class AmazonscraperPipeline2(object):
 
     def _exporter_for_item(self, item, spider):
         title = item['title']
+        _path = ""
+        try:
+            _path = item['breadcrumbs']
+        except:
+            pass
         if title not in self.title_to_exporter:
-            PATH = 'FILES\\' + title
+            PATH = 'FILES/' + _path +'/'+ title
             if not os.path.exists(PATH):
                 os.makedirs(PATH)
             if (spider.output == 'json'):
-                f = open('%s\JS.json' % (PATH), 'wb')
+                f = open('%s/JS.json' % (PATH), 'wb')
                 exporter = JsonItemExporter(f)
             else:
-                f = open('%s\CSV.csv' % (PATH), 'wb')
+                f = open('%s/CSV.csv' % (PATH), 'wb')
                 exporter = CsvItemExporter(f)
             exporter.start_exporting()
             self.title_to_exporter[title] = exporter
@@ -77,8 +83,10 @@ class AmazonscraperPipeline2(object):
     def process_item(self, item, spider):
         try:
             item['price'] = item['price'][0]
+            item['breadcrumbs'] = [x.replace(' ','').replace("\n",'') for x in item['breadcrumbs']]
+            item['breadcrumbs'] = '/'.join(item['breadcrumbs'])
             item['product_desc'] = item['product_desc'][0]
-            item['title'] = item['title'][0].replace(':',' ').replace(',','').replace(' ','_')[10:40]
+            item['title'] = item['title'][0].replace(':',' ').replace(',','').replace(' ','_').replace('Amazon.com','')[:20]
         except:
             pass
         exporter = self._exporter_for_item(item, spider)

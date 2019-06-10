@@ -28,6 +28,7 @@ class Spider01Spider(CrawlSpider):
         item.add_value('price', self.getPrice(response))
         item.add_value('image_urls', self.getImg(response))
         item.add_value('product_desc', response.xpath('//meta[contains(@name, "description")]/@content').extract_first())
+        item.add_value('breadcrumbs', response.xpath('//ul[@class="a-unordered-list a-horizontal a-size-small"]/li/span/a/text()').extract())
         return item.load_item()
 
     def __init__(self, output='', site='',*args, **kwargs):

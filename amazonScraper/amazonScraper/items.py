@@ -15,4 +15,5 @@ class AmazonscraperItem(scrapy.Item):
     rating = scrapy.Field()
     image_urls = scrapy.Field()
     images = scrapy.Field()
+    breadcrumbs = scrapy.Field()
     product_desc = scrapy.Field()
