@@ -46,10 +46,31 @@ class AmazonscraperPipeline1(ImagesPipeline):
         ## end of deprecation warning block
         title = request.meta['title']
         _path = request.meta['breadcrumbs']
-        return '%s/%s/IMG.jpg' % (_path, title)
+        return '%s\%s\IMG.jpg' % (_path, title)
 
 
 class AmazonscraperPipeline2(object):
+
+    def cleanPrice(self, item, spider):
+        if type(item['price']) == list:
+            item['price'] = item['price'][0]
+
+    def cleanTitle(self, item, spider):
+        if type(item['title']) == list:
+            item['title'] = item['title'][0]
+
+        if spider.site == 'amazon':
+            item['title'] = item['title'].replace(':', ' ').replace(',', '').replace(' ', '_').replace('Amazon.com', '')
+
+    def cleanProduct(self, item, spider):
+        if type(item['product_desc']) == list:
+            item['product_desc'] = item['product_desc'][0]
+
+    def cleanBreadcrumbs(self, item, spider):
+        if spider.site == 'amazon':
+            item['breadcrumbs'] = [x.replace(' ', '').replace("\n", '') for x in item['breadcrumbs']]
+            item['breadcrumbs'] = '\\'.join(item['breadcrumbs'])
+
     def open_spider(self, spider):
         self.title_to_exporter = {}
 
@@ -60,34 +81,37 @@ class AmazonscraperPipeline2(object):
 
 
     def _exporter_for_item(self, item, spider):
+        self.cleanTitle(item, spider)
         title = item['title']
         _path = ""
         try:
             _path = item['breadcrumbs']
         except:
             pass
-        if title not in self.title_to_exporter:
-            PATH = 'FILES/' + _path +'/'+ title
+
+        if (title, _path) not in self.title_to_exporter:
+            PATH = 'FILES\\' + _path + '\\' + title
             if not os.path.exists(PATH):
                 os.makedirs(PATH)
             if (spider.output == 'json'):
-                f = open('%s/JS.json' % (PATH), 'wb')
+                f = open('%s\JS.json' % (PATH), 'wb')
                 exporter = JsonItemExporter(f)
             else:
-                f = open('%s/CSV.csv' % (PATH), 'wb')
+                f = open('%s\CSV.csv' % (PATH), 'wb')
                 exporter = CsvItemExporter(f)
             exporter.start_exporting()
-            self.title_to_exporter[title] = exporter
-        return self.title_to_exporter[title]
+            self.title_to_exporter[(title, _path)] = exporter
+        return self.title_to_exporter[(title, _path)]
+
+
 
     def process_item(self, item, spider):
         try:
-            item['price'] = item['price'][0]
-            item['breadcrumbs'] = [x.replace(' ','').replace("\n",'') for x in item['breadcrumbs']]
-            item['breadcrumbs'] = '/'.join(item['breadcrumbs'])
-            item['product_desc'] = item['product_desc'][0]
-            item['title'] = item['title'][0].replace(':',' ').replace(',','').replace(' ','_').replace('Amazon.com','')[:20]
-        except:
+            self.cleanBreadcrumbs(item, spider)
+            self.cleanTitle(item, spider)
+            self.cleanPrice(item, spider)
+            self.cleanProduct(item, spider)
+        except KeyError:
             pass
         exporter = self._exporter_for_item(item, spider)
         exporter.export_item(item)
